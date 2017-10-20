@@ -53,7 +53,7 @@ y_pred = ppn.predict(X_test_std)
 print('Correctly classified samples: %d' % (y_test == y_pred).sum())
 print('Misclassified samples: %d' % (y_test != y_pred).sum())
 print('Accuracy: %.2f' % accuracy_score(y_test, y_pred))
-print('Accuracy: %.2f' % ppn.score(X_test_std, y_test)) #equivalent to above
+#print('Accuracy: %.2f' % ppn.score(X_test_std, y_test)) #equivalent to above
 
 
 # Plot data and decision regions
@@ -66,6 +66,7 @@ plot_decision_regions(X=X_combined_std,
 plt.xlabel('petal length (standardized)')
 plt.ylabel('petal width (standardized)')
 plt.legend()
+plt.title('Iris classification (by perceptron)')
 plt.show()
 
 
