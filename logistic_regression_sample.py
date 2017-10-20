@@ -52,6 +52,7 @@ class Perceptron(object):
         self.w_ = rgen.normal(loc=0.0, scale=0.01, size=1 + X.shape[1])
         self.errors_ = []
 
+        # This is gradient descent, but keeps running through n_iter no matter what
         for _ in range(self.n_iter):
             errors = 0
             for xi, target in zip(X, y):
@@ -93,15 +94,21 @@ class LogisticRegressionGD(object):
       Sum of squares cost function value in each epoch.
     """
     
-    def __init__(self, eta=0.05, n_iter=100, random_state=1, to_normalize=False):
+    def __init__(self, eta=0.05, n_iter=100, random_state=1, to_normalize = True):
         self.eta = eta
         self.n_iter = n_iter
         self.random_state = random_state
         self.to_normalize = to_normalize
+        if self.to_normalize:
+            self.X_means = []
+            self.X_steds = []
+
 
     def fit(self, X, y):
-        """Fit training data.
-         Parameters
+        """
+        Fits training data.  Optimizes w_ with gradient descent.
+        
+        Parameters
         ----------
         X : {array-like}, shape = [n_samples, n_features]
           Training vectors, where n_samples is the number of samples and
@@ -113,27 +120,53 @@ class LogisticRegressionGD(object):
         -------
         self : object
         """
-        
-#       NORMALIZATION ISN'T WORKING YET 
+ 
         if self.to_normalize:
-            X = self.normalize(X)
-        
+            (X, self.X_means, self.X_stds) = self.normalize(X)    
+            # If we chose to normalize data, re-plot it.
+            plt.scatter(X[:50,0], X[:50,1], color='red', marker='o', label='Setosa')
+            plt.scatter(X[50:100,0], X[50:100,1], color='blue', marker = 'x', label='Virginica')
+            plt.xlabel('sepal length [cm]')
+            plt.ylabel('petal length [cm]')
+            plt.title('Iris data set (normalized)')
+            plt.legend()
+            plt.show()
+       
+        # Set up initial values for weights
         rgen = np.random.RandomState(self.random_state)
         self.w_ = rgen.normal(loc=0.0, scale=0.01, size=1 + X.shape[1])
         self.cost_ = []
 
-        #NOTE: Need to switch to gradient descent, rather than blindly doing n_iter iterations
-        #NOTE: Need to switch from eta to 1/m 
+        #Run gradient descent (NOTE: it keeps running through n_iter no matter what)
+        #NOTE: Need to switch from eta to 1/m for consistency w/ Andrew Ng's class
         for i in range(self.n_iter):
-            net_input = self.net_input(X)
-            output = self.sigmoid(net_input)
-            errors = (y - output)
-            self.w_[1:] += self.eta * X.T.dot(errors)
-            self.w_[0] += self.eta * errors.sum()
-            self.cost_.append(self.cost_function(y, output))
-            
+            net_input = self.net_input(X) #scalar
+            output = self.sigmoid(net_input) #vector
+            errors = (y - output) #vector
+            self.w_[0] += self.eta * errors.sum() #vector; w_[0] is bias unit
+            self.w_[1:] += self.eta * X.T.dot(errors) #vector
+            cost = self.cost_function(y, output)
+            self.cost_.append(cost) #used to verify convergence
         return self
 
+        
+    def normalize(self,X):
+        X_norm = np.copy(X)
+        X_means = []
+        X_stds = []
+        num_cols = X_norm.shape[1]
+        
+        for i in range(0,num_cols):
+            X_norm[:,i] = (X[:,i] - X[:,i].mean()) / X[:,i].std()
+
+            #Store normalization factors to restore predicted values later
+            X_means.append(X[:,i].mean())
+            X_stds.append(X[:,i].std())
+        print('\nDuring normalization, calculated mean=',X_means,'std=',X_stds)
+
+        return(X_norm, X_means, X_stds)
+        
+        
     def net_input(self, X):
         """Calculate net input.  This term is z in Andrew Ng's class """
         return np.dot(X, self.w_[1:]) + self.w_[0]
@@ -147,33 +180,10 @@ class LogisticRegressionGD(object):
         '''Calculate the logistic regression cost function'''
         # NOTE: need to include the 1/m term
         # NOTE: need to update to return both J and Gradient
-        return (-y.dot(np.log(output)) - ((1.-y).dot(np.log(1.-output))))
-        
-    def gradient_descent (self, X, y, w):
-        '''Performs gradient descent to optimize'''
-        #NOTE: need to implement
-        pass
-    
-    def normalize (self, X):
-        '''Normalizes feature vectors'''
-        
-        X_norm = np.copy(X)
-        num_cols = X_norm.shape[1]
-        self.X_means = [] # list will have one entry for each feature column of X
-        self.X_stds = [] # list will have one entry for each feature column of X
-        
-        for i in range(0,num_cols):
-            X_norm[:,i] = (X[:,i] - X[:,i].mean()) / X[:,i].std()
-            # To normalize by range (instead of sigma) use the following line:
-            #X_norm[:,i] = (X[:,i] - X[:,i].mean()) / (X[:,i].max()-X[:,i].min())
-
-            #Store normalization factors to restore predicted values later
-            self.X_means.append(X[:,i].mean())
-            self.X_stds.append(X[:,i].std())
-            # To normalize by range (instead of sigma) use the following line:
-            #self.X_stds.append((X[:,i].max()-X[:,i].min()))
-        print('During normalization, calculated mean=',self.X_means,'std=',self.X_stds)
-        return X_norm
+        cost = -y.dot(np.log(output)) - ((1.-y).dot(np.log(1.-output)))
+#        print('y=',y,'output=',output,'cost=',cost)
+        return cost
+            
         
     def predict(self, X):
         """Return class label based on sigmoid function"""
@@ -181,19 +191,26 @@ class LogisticRegressionGD(object):
         if self.to_normalize:
             X_norm = np.copy(X)
             for i in range(0,X_norm.shape[1]):
+                print('Normalizing to do prediction.',X_means[i],X_stds[i])
                 # During prediction, need to use the saved means/stds, rather than recalculate
                 X_norm[:,i] = (X[:,i] - self.X_means[i]) / self.X_stds[i]
             return np.where(self.net_input(X_norm) >= 0, 1, 0)
         else:
             #Due to shape of sigmoid function, these two options are equivalent
-            return np.where(self.net_input(X) >= 0, 1, 0)
-#           return np.where(self.sigmoid(self.net_input(X)) >= 0.5, 1, 0)
-
+            #return np.where(self.net_input(X) >= 0, 1, 0)
+            return np.where(self.sigmoid(self.net_input(X)) >= 0.5, 1, 0)
+ 
 
 
 
 def plot_decision_regions(X, y, classifier, resolution=0.02):
-
+    '''
+    Helper function to plot the decision regions.
+    Data does not need to be pre-normalized. 
+    Classifier's predict() function will noramlize if necessary, but
+    data will be plotted using original values.
+    '''
+    
     # setup marker generator and color map
     markers = ('s', 'x', 'o', '^', 'v')
     colors = ('red', 'blue', 'lightgreen', 'gray', 'cyan')
@@ -220,7 +237,7 @@ def plot_decision_regions(X, y, classifier, resolution=0.02):
                     label=cl, 
                     edgecolor='black')
  
-def prepareDataset(model = 'lr'):
+def loadDataset(model = 'lr'):
     '''
     Loads data from UCI repository.  
         Transforms y in [0,1] for model = 'lr' (default)
@@ -235,8 +252,7 @@ def prepareDataset(model = 'lr'):
     y = df.iloc[0:100, 4].values
     
     # deal with the fact that perceptron treats negative cases as -1; LR treats as 0
-    negval = 0
-    posval = 1
+    (negval, posval) = (0,1)
     if model == 'p':
         negval = -1
 
@@ -261,13 +277,12 @@ def prepareDataset(model = 'lr'):
     plt.title('Iris data set')
     plt.legend()
     plt.show()
-    
-    return (X,y)
 
+    return (X,y)
 
 def runPerceptronModel():
     # Train perceptron
-    X,y = prepareDataset(model = 'p')
+    X,y = loadDataset(model = 'p')
     ppn = Perceptron(eta=0.1, n_iter=10)
     ppn.fit(X,y)
     plt.plot(range(1, len(ppn.errors_) + 1),ppn.errors_, marker='o')
@@ -285,16 +300,25 @@ def runPerceptronModel():
     plt.show()
       
 def runLRModel():
-    # Train logistic regression classifier
     norm = True
-    X,y = prepareDataset(model = 'lr')
-    lrgd = LogisticRegressionGD(eta=0.05, n_iter = 10000, random_state = 1, to_normalize = norm)
+    X,y = loadDataset(model = 'lr')
+
+    # Train logistic regression classifier
+    lrgd = LogisticRegressionGD(eta=0.01, n_iter = 200, random_state = 1, to_normalize = True)
     lrgd.fit(X,y)
 
+    #Plot costs vs. # iterations to verify convergence
+    plt.plot(range(1, len(lrgd.cost_) + 1),lrgd.cost_, marker='o')
+    plt.xlabel('Epochs')
+    plt.ylabel('Gradient descent cost function')
+    plt.title('Convergence of Linear Regression model')
+    plt.show()
+
+    #Plot decision boundaries
     plot_decision_regions(X,y, classifier=lrgd)
     plt.xlabel('sepal length [cm]')
     plt.ylabel('petal length [cm]')
-    plt.title('Iris classification (logistic regression); Normalized= '+str(norm))
+    plt.title('Iris classification (logistic regression); Used normalization? '+str(norm))
     plt.legend()
     plt.show()
     
