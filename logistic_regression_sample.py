@@ -80,6 +80,8 @@ class LogisticRegressionGD(object):
     ------------
     eta : float
       Learning rate (between 0.0 and 1.0)
+    alpha : float
+      Learning rate (between 0.0 and 1.0)
     n_iter : int
       Passes over the training dataset.
     random_state : int
@@ -94,8 +96,9 @@ class LogisticRegressionGD(object):
       Sum of squares cost function value in each epoch.
     """
     
-    def __init__(self, eta=0.05, n_iter=100, random_state=1, to_normalize = True):
+    def __init__(self, alpha = 2.0, eta=0.05, n_iter=100, random_state=1, to_normalize = True):
         self.eta = eta
+        self.alpha = alpha
         self.n_iter = n_iter
         self.random_state = random_state
         self.to_normalize = to_normalize
@@ -136,15 +139,17 @@ class LogisticRegressionGD(object):
         rgen = np.random.RandomState(self.random_state)
         self.w_ = rgen.normal(loc=0.0, scale=0.01, size=1 + X.shape[1])
         self.cost_ = []
+        m = len(y) # Andrew Ng definition
 
         #Run gradient descent (NOTE: it keeps running through n_iter no matter what)
-        #NOTE: Need to switch from eta to 1/m for consistency w/ Andrew Ng's class
         for i in range(self.n_iter):
             net_input = self.net_input(X) #scalar
             output = self.sigmoid(net_input) #vector
             errors = (y - output) #vector
-            self.w_[0] += self.eta * errors.sum() #vector; w_[0] is bias unit
-            self.w_[1:] += self.eta * X.T.dot(errors) #vector
+#            self.w_[0] += self.eta * errors.sum() #vector; w_[0] is bias unit
+#            self.w_[1:] += self.eta * X.T.dot(errors) #vector
+            self.w_[0] += (self.alpha / m) * errors.sum() #vector; w_[0] is bias unit
+            self.w_[1:] += (self.alpha / m)  * X.T.dot(errors) #vector
             cost = self.cost_function(y, output)
             self.cost_.append(cost) #used to verify convergence
         return self
@@ -178,10 +183,8 @@ class LogisticRegressionGD(object):
         
     def cost_function (self,y,output):
         '''Calculate the logistic regression cost function'''
-        # NOTE: need to include the 1/m term
-        # NOTE: need to update to return both J and Gradient
-        cost = -y.dot(np.log(output)) - ((1.-y).dot(np.log(1.-output)))
-#        print('y=',y,'output=',output,'cost=',cost)
+        m = len(y)
+        cost = (1/m) * (-y.dot(np.log(output)) - ((1.-y).dot(np.log(1.-output))))
         return cost
             
         
@@ -304,14 +307,15 @@ def runLRModel():
     X,y = loadDataset(model = 'lr')
 
     # Train logistic regression classifier
-    lrgd = LogisticRegressionGD(eta=0.01, n_iter = 200, random_state = 1, to_normalize = norm)
+    #lrgd = LogisticRegressionGD(eta=0.01, n_iter = 200, random_state = 1, to_normalize = norm) # ML book notation
+    lrgd = LogisticRegressionGD(alpha = 2.0, n_iter = 200, random_state = 1, to_normalize = norm) #A.Ng notation
     lrgd.fit(X,y)
 
     #Plot costs vs. # iterations to verify convergence
     plt.plot(range(1, len(lrgd.cost_) + 1),lrgd.cost_, marker='o')
     plt.xlabel('Epochs')
     plt.ylabel('Gradient descent cost function')
-    plt.title('Convergence of Linear Regression model')
+    plt.title('Convergence of Logistic Regression model')
     plt.show()
 
     #Plot decision boundaries
