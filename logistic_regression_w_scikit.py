@@ -45,9 +45,11 @@ sc.fit(X_train)
 X_train_std = sc.transform(X_train)
 X_test_std = sc.transform(X_test)
 
-# Train perceptron
-lrgd = LogisticRegressionGD(n_iter=40, eta=0.1, random_state=1)
+# Train Logistic Regression classified
+#lrgd = LogisticRegressionGD(n_iter=40, eta=0.1, random_state=1) # Py ML book
+lrgd = LogisticRegressionGD(n_iter=100, alpha=1.0, random_state=1) # Andrew Ng
 lrgd.fit(X_train_std, y_train)
+
 
 # Make prediction for test set
 y_pred = lrgd.predict(X_test_std)
@@ -55,6 +57,14 @@ print('Correctly classified samples: %d' % (y_test == y_pred).sum())
 print('Misclassified samples: %d' % (y_test != y_pred).sum())
 print('Accuracy: %.2f' % accuracy_score(y_test, y_pred))
 #print('Accuracy: %.2f' % lrgd.score(X_test_std, y_test)) #equivalent to above
+
+
+#Plot costs vs. # iterations to verify convergence
+plt.plot(range(1, len(lrgd.cost_) + 1),lrgd.cost_, marker='o')
+plt.xlabel('Epochs')
+plt.ylabel('Gradient descent cost function')
+plt.title('Convergence of Logistic Regression model')
+plt.show()
 
 
 # Plot data and decision regions
