@@ -191,7 +191,7 @@ class LogisticRegressionGD(object):
         if self.to_normalize:
             X_norm = np.copy(X)
             for i in range(0,X_norm.shape[1]):
-                print('Normalizing to do prediction.',X_means[i],X_stds[i])
+ #               print('Normalizing to do prediction.',X_means[i],X_stds[i])
                 # During prediction, need to use the saved means/stds, rather than recalculate
                 X_norm[:,i] = (X[:,i] - self.X_means[i]) / self.X_stds[i]
             return np.where(self.net_input(X_norm) >= 0, 1, 0)
@@ -304,7 +304,7 @@ def runLRModel():
     X,y = loadDataset(model = 'lr')
 
     # Train logistic regression classifier
-    lrgd = LogisticRegressionGD(eta=0.01, n_iter = 200, random_state = 1, to_normalize = True)
+    lrgd = LogisticRegressionGD(eta=0.01, n_iter = 200, random_state = 1, to_normalize = norm)
     lrgd.fit(X,y)
 
     #Plot costs vs. # iterations to verify convergence
